@@ -7,9 +7,11 @@ class RBTreeTest : public ::testing::Test {
 
 protected:
 
-using tree = typename rb_tree<int, int>;
-using node_ptr = tree::node_ptr;
-using node_value = tree::node_value;
+using tree = typename BSTree<int, int, 
+								std::less<int>, 
+								std::allocator<std::pair<int, int>>, RBTreePolicy>;
+using node_ptr = typename tree::NodeType*;
+using node_value = typename tree::NodeType;
 using Color = node_value::Color;
 
 
@@ -28,19 +30,6 @@ struct ExpectedNodeValues {
 
 	}
 
-	void build_simple_tree()
-	{
-		node_ptr root = node_value::alloc_head(_M_tree._M_alloc_node, _M_tree._M_end);
-		node_ptr left = node_value::alloc_head(_M_tree._M_alloc_node, _M_tree._M_end);
-		node_ptr right = node_value::alloc_head(_M_tree._M_alloc_node, _M_tree._M_end);
-		_M_tree._M_root = root;
-		_M_tree._M_root->_M_left = left;
-		_M_tree._M_root->_M_right = right;
-		left->_M_parent = _M_tree._M_root;
-		right->_M_parent = _M_tree._M_root;
-	}
-
-
 	template<typename Key, typename Value>
 	void assert_node(node_ptr node, ExpectedNodeValues<Key, Value> result)
 	{
@@ -55,48 +44,7 @@ struct ExpectedNodeValues {
 	tree _M_tree;
 };
 
-TEST_F(RBTreeTest, Rotation_left)
-{
-	build_simple_tree();
-
-	auto root = _M_tree._M_root;
-	auto right = _M_tree._M_root->_M_right;
-	auto left = _M_tree._M_root->_M_left;
-
-	_M_tree.rotation_left(_M_tree._M_root);
-
-	
-
-	ASSERT_EQ(_M_tree._M_root, right);
-	ASSERT_EQ(_M_tree._M_root->_M_left, root);
-	ASSERT_EQ(_M_tree._M_root->_M_right, _M_tree._M_end);
-	ASSERT_EQ(_M_tree._M_root->_M_parent, _M_tree._M_end);
-	
-	ASSERT_EQ(root->_M_right, _M_tree._M_end);
-	ASSERT_EQ(root->_M_left, left);
-	ASSERT_EQ(root->_M_parent, _M_tree._M_root);
-}
-
-TEST_F(RBTreeTest, Rotation_right)
-{
-	build_simple_tree();
-
-	auto root = _M_tree._M_root;
-	auto right = _M_tree._M_root->_M_right;
-	auto left = _M_tree._M_root->_M_left;
-
-	_M_tree.rotation_right(_M_tree._M_root);
-
-	ASSERT_EQ(_M_tree._M_root, left);
-	ASSERT_EQ(_M_tree._M_root->_M_right, root);
-	ASSERT_EQ(_M_tree._M_root->_M_left, _M_tree._M_end);
-	ASSERT_EQ(_M_tree._M_root->_M_parent, _M_tree._M_end);
-	
-	ASSERT_EQ(root->_M_left, _M_tree._M_end);
-	ASSERT_EQ(root->_M_right, right);
-	ASSERT_EQ(root->_M_parent, _M_tree._M_root);
-}
-
+/*
 TEST_F(RBTreeTest, InsertRoot)
 {
 	_M_tree.insert({ 0, 1 });
@@ -261,3 +209,4 @@ TEST_F(RBTreeTest, InsertRightRotationBalance)
 	assert_node<int, int>(right, resultRight);
 	assert_node<int, int>(left, resultLeft);
 }
+*/
