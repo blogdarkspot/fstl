@@ -9,8 +9,8 @@ protected:
 			_M_ll1.push_back(_result[i]);
 		}
 	}
-	lf::List<int> _M_ll0;
-	lf::List<int> _M_ll1;
+	List<int> _M_ll0;
+	List<int> _M_ll1;
 	int _result[5] = { 1, 2, 3, 4, 5 };
 	const std::size_t sz = 5;
 };
@@ -50,7 +50,9 @@ TEST_F(LinkedListTest, Remove)
 {
 	for (int i = 0; i < sz; ++i)
 	{
-		_M_ll1.remove(_result[i]);
+		auto it = _M_ll1.find(_result[i]);
+		auto ret = _M_ll1.erase(it);
+		EXPECT_EQ(ret, 1);
 	}
 	EXPECT_EQ(_M_ll1.size(), 0x00);
 	auto begin = _M_ll1.begin();
