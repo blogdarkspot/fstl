@@ -2,91 +2,7 @@
 #define __RB_TREE_POLICY__
 
 #include<utility>
-
-template<typename TreeType>
-struct BSTreeIterator {
-
-	using NodeValue = typename TreeType::NodeValue;
-	using NodePtr = NodeValue*;
-
-	using value_type = typename NodeValue::ValueType;
-	using pointer = value_type*;
-	using reference = value_type&;
-	using difference_type = std::ptrdiff_t;
-	using iterator_category = std::bidirectional_iterator_tag;
-
-
-	using iterator = BSTreeIterator<TreeType>;
-
-	BSTreeIterator(NodePtr node_ptr) : _M_ptr(node_ptr) {
-	}
-
-	iterator& operator--() {
-		if (_M_ptr->_M_left->_M_isNil)
-		{
-			auto* parent = _M_ptr->_M_parent;
-			while (parent->_M_isNil && parent->_M_left == _M_ptr)
-			{
-				_M_ptr = parent;
-				parent = _M_ptr->_M_parent;
-			}
-		}
-		else
-		{
-			_M_ptr = TreeType::max(_M_ptr->_M_left);
-		}
-		return *this;
-	}
-
-	iterator operator--(int) {
-		auto ret = *this;
-		--*this;
-		return ret;
-	}
-
-	iterator& operator++() {
-		if (_M_ptr->_M_right->_M_isNil)
-		{
-			node_ptr parent = _M_ptr->_M_parent;
-			while (parent->_M_isNil && parent->_M_right == _M_ptr)
-			{
-				_M_ptr = parent;
-				parent = _M_ptr->_M_parent;
-			};
-			_M_ptr = parent;
-		}
-		else
-		{
-			_M_ptr = TreeType::min(_M_ptr->_M_right);
-		}
-		return *this;
-	}
-
-	iterator& operator=(const iterator& rhs) {
-		_M_ptr = rhs._M_ptr;
-		return *this;
-	}
-
-	iterator operator++(int) {
-		auto ret = *this;
-		++*this;
-		return ret;
-	}
-
-	reference operator*() {
-		return _M_ptr->_M_value;
-	}
-
-	bool operator==(const iterator& rhs) const {
-		return _M_ptr == rhs._M_ptr;
-	}
-
-	bool operator!=(const iterator& rhs) {
-		return _M_ptr != rhs._M_ptr;
-	}
-
-	NodePtr _M_ptr;
-};
+#include"common_binary_tree.hpp"
 
 template<typename Key, typename Value, typename Compare, typename Allocator>
 class RBTreePolicy {
@@ -110,7 +26,7 @@ class RBTreePolicy {
 
 		node() = default;
 
-		bool _M_isNil = true;
+		bool _M_nil = true;
 		Color _M_color = Color::RED;
 		node_ptr _M_left = nullptr;
 		node_ptr  _M_right = nullptr;
@@ -119,7 +35,6 @@ class RBTreePolicy {
 
 		static node_ptr create_node(node_allocator& alloc, node_ptr nil) {
 			node_ptr ret = alloc.allocate(1);
-			new (ret) node<Value, Allocator>();
 			ret->_M_left = nil;
 			ret->_M_right = nil;
 			ret->_M_parent = nil;
@@ -134,16 +49,16 @@ class RBTreePolicy {
 
 protected:
 
-	using TreeType = typename RBTreePolicy<Key, Value, Compare, Allocator>;
-	using NodeType = node;
-	using iterator = BSTreeIterator<TreeType>;
+	using TreeType = RBTreePolicy<Key, Value, Compare, Allocator>;
+	using node_type = node;
+	using iterator = tree_iterator<node_type>;
 
 	using ValueType = Value;
 
-	iterator insert(NodeType** _M_root, ValueType&& _value) {
-		NodeType* tmp = *_M_root;
-		NodeType* position = tmp;
-		while (!tmp->_M_isNil)
+	iterator insert(node_type** _M_root, ValueType&& _value) {
+		node_type* tmp = *_M_root;
+		node_type* position = tmp;
+		while (!tmp->_M_nil)
 		{
 			position = tmp;
 			if (_value.first == tmp->_M_value.first)
@@ -162,7 +77,7 @@ protected:
 		}
 
 		//root
-		if (position->_M_isNil)
+		if (position->_M_nil)
 		{
 
 		}
@@ -173,47 +88,47 @@ protected:
 		return iterator(position);
 	}
 
-	std::size_t remove(NodeType** _M_root, Key _key) {
+	std::size_t remove(node_type** _M_root, Key _key) {
 		return  0;
 	}
 
-	iterator begin(NodeType* root) {
+	iterator begin(node_type* root) {
 		return iterator(root);
 	}
 
-	iterator end(NodeType* root) {
+	iterator end(node_type* root) {
 		return iterator(root->_M_parent);
 	}
 
-	static NodeType* min(NodeType* root) {
+	static node_type* min(node_type* root) {
 		auto ret = root;
-		while (!ret->_M_left->_M_isNil)
+		while (!ret->_M_left->_M_nil)
 		{
 			ret = ret->_M_left;
 		}
 		return ret;
 	}
 
-	static NodeType* max(NodeType* root) {
+	static node_type* max(node_type* root) {
 		auto ret = root;
-		while (!ret->_M_right->_M_isNil)
+		while (!ret->_M_right->_M_nil)
 		{
 			ret = ret->_M_right;
 		}
 		return ret;
 	}
 
-	static NodeType* leftRotation(NodeType* node) {
+	static node_type* leftRotation(node_type* node) {
 		auto right = node->_M_right;
 		node->_M_right = right->_M_left;
-		if (!right->_M_left->_M_isNil)
+		if (!right->_M_left->_M_nil)
 		{
 			right->_M_left->_M_parent = node;
 		}
 		right->_M_left = node;
 		right->_M_parent = node->_M_parent;
 		node->_M_parent = right;
-		if (!right->_M_parent->_M_isNil)
+		if (!right->_M_parent->_M_nil)
 		{
 			if (right->_M_parent->_M_right == node)
 			{
@@ -227,17 +142,17 @@ protected:
 		return right;
 	}
 	//if parent is nil change the root
-	static NodeType* rightRotation(NodeType* node) {
+	static node_type* rightRotation(node_type* node) {
 		auto left = node->_M_left;
 		node->_M_left = left->_M_right;
-		if (!node->_M_left->_M_isNil)
+		if (!node->_M_left->_M_nil)
 		{
 			node->_M_left->_M_parent = node;
 		}
 		node->_M_parent = left;
 		left->_M_right = node;
 		left->_M_parent = node->_M_parent;
-		if (!left->_M_parent->_M_isNil)
+		if (!left->_M_parent->_M_nil)
 		{
 			if (left->_M_parent->_M_right == node)
 			{
