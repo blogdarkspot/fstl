@@ -39,7 +39,7 @@ jobs:
 
   - name: Publish Test Results
     uses: EnricoMi/publish-unit-test-result-action@v2
-      if: always()
-      with:
-       files: |
+    if: always()
+    with:
+     files: |
          ./**/result_junit.xml
