@@ -35,11 +35,11 @@ jobs:
 
   - name: Test
     working-directory: ${{github.workspace}}/build/tests
-    run: ctest -C ${{env.BUILD_TYPE}}
+    run: ctest -C ${{env.BUILD_TYPE}} --output-junit ctest-results.xml
 
   - name: Publish Test Results
     uses: EnricoMi/publish-unit-test-result-action@v2
     if: always()
     with:
      files: |
-         ./**/result_junit.xml
+         ./**/ctest-results.xml
