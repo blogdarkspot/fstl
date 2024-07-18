@@ -34,6 +34,7 @@ jobs:
     uses: mikeal/publish-to-github-action@master 
     env:
      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+     BRANCH_NAME: main
   - name: Configure CMake 
     run: cmake -B ${{github.workspace}}/build -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}}
 
