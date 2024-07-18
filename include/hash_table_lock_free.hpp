@@ -133,13 +133,14 @@ public:
 			//agora verificamos se algum valor igual jã foi inserido
 			//agora new_node->_M_next ~e a atual header 
 			//entao pode existir um range de nós entre _M_next - beg
-			auto head = new_node->_M_next.load();
+			auto head = new_node->_M_next;
 			while(head != _M_end)
 			{
+				/*
 				if(head->_M_value == value)
 				{
 					return iterator(head);
-				}
+				}*/
 			}
 			//o nó que iriamos colocar foi removido
 			//então começamos novamente e sabemos que 
