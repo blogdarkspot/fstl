@@ -19,16 +19,6 @@ struct bs_node
 	pointer _M_right;
 	value_type _M_value;
 
-	
-	 
-};
-
-template<typename ValueT>
-struct node_traits<ValueT, bs_node<ValueT>> {
-	using value_type = typename bs_node<ValueT>::value_type;
-	using node_type  = typename bs_node<ValueT>::node_type;
-	using pointer    = typename bs_node<ValueT>::node_type::pointer;	
-
 	template<typename Allocator>
 		static pointer allocate_node(Allocator& allocator)
 		{
@@ -43,7 +33,6 @@ struct node_traits<ValueT, bs_node<ValueT>> {
 		}
 };
 
-
 template<typename Key, typename Value, 
 			typename Compare,
 			typename Allocator>
@@ -57,6 +46,35 @@ class BSeachTreePolicy
 
 	iterator insert(node_ptr* root, value_type&& value)
 	{
+		node_ptr tmp = *root;
+		node_ptr pos = tmp;
+		while(!tmp->_M_nil)
+		{
+			if(Compare(value, tmp->_M_value.first))
+			{
+				pos = tmp;
+				tmp = tmp->_M_left;
+			}
+			if(Compare(tmp->_M_value.first, value))
+			{
+				pos = tmp;
+				tmp = tmp->_M_right;
+			}
+			else
+			{
+				//value já existe
+				return end();
+			}
+		}
+
+		node_ptr new_node = node_type::allocate();
+		//root
+		if(pos->_M_nil)
+		{
+		}
+		else
+		{
+		}
 		return iterator(*root);
 	}
 	
@@ -71,11 +89,12 @@ class BSeachTreePolicy
 	
 	iterator begin(node_ptr root)
 	{
-		
+		return iterator(root);		
 	}
 	
 	iterator end(node_ptr root)
 	{
+		return iteator(root->_M_parent);
 	}	
 };
 #endif

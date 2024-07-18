@@ -9,7 +9,6 @@ struct node_traits{};
 
 template<typename NodeT>
 class tree_rotation_policy {
-	using node_t = node_traits<typename NodeT::value_type, NodeT>;
 protected:
 	static NodeT* left(NodeT* node)
 	{
@@ -20,9 +19,7 @@ protected:
 		{
 			node->_M_right->_M_parent = node;
 		}
-		right->_M_left = node;
 		right->_M_parent = node->_M_parent;
-		node->_M_parent = right;
 		if(!right->_M_parent->_M_nil)
 		{
 			if(right->_M_parent->_M_right == node)
@@ -34,11 +31,35 @@ protected:
 				right->_M_parent->_M_left = right;
 			}
 		}
+		right->_M_left = node;
+		node->_M_parent = right;
 			
 	}
 
 	static NodeT* right(NodeT** root, NodeT* node)
 	{
+		NodeT* left = node->_M_left;
+		node->_M_left = left->_M_right;
+		if(!node->_M_left->_M_nil)
+		{
+			node->_M_left->_M_parent = node;
+		}
+		left->_M_parent = node->_M_parent;
+		if(!left->_M_parent->_M_nil)
+		{
+			if(left->_M_parent->_M_right == node)
+			{
+				left->_M_parent->_M_right = left;
+			}
+			else
+			{
+				
+				left->_M_parent->_M_left = left;
+			}
+		}
+		left->_M_right = node;
+		node->_M_parent = left;
+				
 	}
 };
 
