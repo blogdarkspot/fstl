@@ -27,10 +27,10 @@ jobs:
       submodules: recursive
  
   - name: cppcheck
-    uses: deep5050/cpp-check-action@main
-  
+    uses: deep5050/cppcheck-action@main 
+
   - name: cppcheck report
-    uses: mikea/publish-to-github-action@master
+    uses: mikeal/publish-to-github-action@master 
      
   - name: Configure CMake 
     run: cmake -B ${{github.workspace}}/build -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}}
