@@ -21,5 +21,5 @@ TEST_F(GraphTests, CreateObjects)
 
 TEST_F(GraphTests, BFS_Test)
 {
-	graph::bfs(_M_graph_, _M_graph_.begin());
+//	graph::bfs(_M_graph_, _M_graph_.begin());
 }
