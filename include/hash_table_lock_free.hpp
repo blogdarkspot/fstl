@@ -47,7 +47,7 @@ struct iterator_list {
 		return ret;
 	}	
 	
-	bool operator!=(const iterator_list<NodeT>& rhs)
+	bool operator!=(const iterator_list<NodeT>& rhs) const
 	{
 		return _M_data != rhs._M_data;
 	}
@@ -105,7 +105,7 @@ valor é checado, fora este cenário itens de mesmo valor podem ser inseridos no
 template<typename T, 
 		typename TEqual = std::equal_to<T>, 
 		typename Allocator = std::allocator<T>>
-class list_lock_free {
+class set_lock_free {
 public:
 	
 	using node_type = node_list<T>;
@@ -123,10 +123,23 @@ public:
 	using node_ptr = node_type*;
 	using allocator_node = typename alloc_traits::template rebind_alloc<node_type>;
 
-	list_lock_free() 
+	set_lock_free() 
 	{
 		_M_end.store(node_type::allocate(_M_allocator));
-		_M_begin.store(_M_end.load());
+        _M_begin = _M_end.load();
+	}
+
+	~set_lock_free()
+	{
+        auto start = _M_begin.load();
+        auto last = _M_end.load();
+		while (start != last)
+		{
+            auto next = start->_M_next;
+            node_type::deallocate(_M_allocator, start);
+            start = next;
+		}
+        node_type::deallocate(_M_allocator, last);
 	}
 
 	iterator begin()
@@ -138,9 +151,11 @@ public:
 	{
 		return iterator(_M_end.load());
 	}
-	/*
-		
-	*/	
+
+	size_type size() const
+    {
+        return _M_count.load();
+	}
 
 	iterator find(const T& value)
 	{
@@ -151,18 +166,19 @@ public:
 		}
 		return ret;
 	}
+
 	template<bool force=true>
 	iterator insert(T value)
 	{
 		//start point
-		node_ptr orig_head  = _M_begin.load();
+		node_ptr orig_head = _M_begin.load();
 		//step-1 Check if the value already exists in the list;
 		{
 			auto start = orig_head; 
 			auto last = _M_end.load();
 			while(start != last && start->_M_value != value) 
 			{
-				++start;
+				start = start->_M_next;
 			}
 			if(start != last)
 			{
@@ -177,6 +193,7 @@ public:
 		//step-2 allocate new node and try insert into begin of the list
 		auto new_node =  node_type::allocate(_M_allocator);	
 		new_node->_M_next = orig_head;
+        new_node->_M_value = value;
 		while(!_M_begin.compare_exchange_strong(new_node->_M_next, new_node))
 		{
 			//step-3 this case only occurs when the head was change by another
@@ -197,10 +214,11 @@ public:
 					node_type::deallocate(_M_allocator, new_node);
 					return iterator(head);
 				}
-				++head;
+				head = head->_M_next;
 			}
 			orig_head = new_node->_M_next;
 		}
+        ++_M_count;
 		return iterator(new_node);
 	}
 
@@ -223,6 +241,7 @@ public:
 private:
 	std::atomic<node_type*> _M_begin;
 	std::atomic<node_type*> _M_end;
+    std::atomic<size_type> _M_count;
 	allocator_node _M_allocator;
 };
 
@@ -242,7 +261,7 @@ class hash_table_lock_free {
 
 	};
 
-	using iterator = typename list_lock_free<value_type,
+	using iterator = typename set_lock_free<value_type,
 						equal_value_type,
 						allocator_type>::iterator;
 
@@ -252,7 +271,7 @@ class hash_table_lock_free {
 			return lhs == rhs;
 		}
 	};
-	using bucket_type = list_lock_free<iterator, 
+	using bucket_type = set_lock_free<iterator, 
 						equal_iterator_type, 
 						allocator_type>;
 	using vec_bucket = bucket_type*;
@@ -306,21 +325,11 @@ class hash_table_lock_free {
 	hash_table_lock_free() 
 	{
 		constexpr unsigned int init_size = (1 << 4);
-
 		_M_table.store(properties::allocate(_M_allocator_table));
-		if(_M_table.is_lock_free())
-		{
-			std::cout << "is lock free" << std::endl;
-		}
-		else
-		{
-			std::cout << "is not lock free" << std::endl;
-		}
 	}
 
 	~hash_table_lock_free()
 	{
-		std::cout << "";
 	}
 
 	void try_resize()
