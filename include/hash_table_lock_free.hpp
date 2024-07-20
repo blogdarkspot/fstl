@@ -1,60 +1,53 @@
 #ifndef __HASH_TABLE_LOCK_FREE__
 #define __HASH_TABLE_LOCK_FREE__
 #include <utility>
-#include <list>
-#include <vector>
 #include <atomic>
-#include <iostream>
 
 template<typename NodeT>
-struct iterator_list {
-	using iterator_category = std::bidirectional_iterator_tag;
+struct forward_iterator_list {
+	using iterator_category = std::forward_iterator_tag;
 	using value_type = typename NodeT::value_type;
 	using reference = value_type&;
 	using difference_type = std::ptrdiff_t;
 
-	iterator_list() : _M_data(nullptr) {}
+	forward_iterator_list() : _M_data(nullptr) {}
 
-	explicit iterator_list(NodeT* data)   : _M_data(data) {}
+	explicit forward_iterator_list(NodeT* data)   : _M_data(data) {}
 
 	reference operator*() {
 		return _M_data->_M_value;
 	}
 
-	iterator_list<NodeT>& operator--()
+	forward_iterator_list<NodeT>& operator++()
 	{
-		_M_data =  _M_data->_M_parent;
-		return *this;
-	}
-
-	iterator_list<NodeT> operator--(int)
-	{
-		auto ret = *this;
-		--*this;
-		return ret;
-	}
-
-	iterator_list<NodeT>& operator++()
-	{
-		_M_data = _M_data->_M_next;
+        _M_data = _M_data->_M_next;
+        while ((!_M_data->_M_nil) && _M_data->_M_deleted)
+        {
+            _M_data = _M_data->_M_next;
+        }
 		return *this;
 	}
 	
-	iterator_list<NodeT> operator++(int)
+	forward_iterator_list<NodeT> operator++(int)
 	{
 		auto ret = *this;
-		--*this;
+		++*this;
 		return ret;
 	}	
 	
-	bool operator!=(const iterator_list<NodeT>& rhs) const
+	bool operator!=(const forward_iterator_list<NodeT>& rhs) const
 	{
 		return _M_data != rhs._M_data;
 	}
 
-	bool operator==(const iterator_list<NodeT>& rhs) const
+	bool operator==(const forward_iterator_list<NodeT>& rhs) const
 	{
 		return (this->_M_data == rhs._M_data);
+	}
+
+	NodeT *get_unsafe_pointer()
+	{
+        return _M_data;
 	}
 	
 	private:
@@ -63,27 +56,28 @@ struct iterator_list {
 };
 
 template<typename T>
-struct node_list {
+struct forward_node {
 	using value_type = T;
 	using pointer = T*;
 	using reference  = T&;
 
-	node_list()  = default;
+	forward_node()  = default;
 
 	value_type  _M_value;
-	node_list<T>* _M_parent;
-	node_list<T>* _M_next;
+	forward_node<T>* _M_next;
+    std::atomic<bool> _M_deleted = false;
 	bool _M_nil = false;
 
 	template<typename Allocator>
-	static node_list<T>* allocate(Allocator& allocator)
+	static forward_node<T>* allocate(Allocator& allocator)
 	{
 		auto node = std::allocator_traits<Allocator>::allocate(allocator, 1);
+        std::allocator_traits<Allocator>::construct(allocator, node);
 		return node;
 	}
 	
 	template<typename Allocator>
-	static void deallocate(Allocator& allocator, node_list<T>* ptr)
+	static void deallocate(Allocator& allocator, forward_node<T>* ptr)
 	{
 		std::allocator_traits<Allocator>::destroy(allocator, ptr);
 		std::allocator_traits<Allocator>::deallocate(allocator, ptr, 1);
@@ -105,10 +99,10 @@ valor é checado, fora este cenário itens de mesmo valor podem ser inseridos no
 template<typename T, 
 		typename TEqual = std::equal_to<T>, 
 		typename Allocator = std::allocator<T>>
-class set_lock_free {
+class set_lf {
 public:
 	
-	using node_type = node_list<T>;
+	using node_type = forward_node<T>;
 
 	using value_type = T;
 	using allocator_type = Allocator;
@@ -119,17 +113,18 @@ public:
 	using size_type = typename alloc_traits::size_type;
 	using difference_type = typename alloc_traits::difference_type;
 
-	using iterator = iterator_list<node_type>;
+	using iterator = forward_iterator_list<node_type>;
 	using node_ptr = node_type*;
 	using allocator_node = typename alloc_traits::template rebind_alloc<node_type>;
 
-	set_lock_free() 
+	set_lf() 
 	{
 		_M_end.store(node_type::allocate(_M_allocator));
+        _M_end.load()->_M_nil = true;
         _M_begin = _M_end.load();
 	}
 
-	~set_lock_free()
+	~set_lf()
 	{
         auto start = _M_begin.load();
         auto last = _M_end.load();
@@ -144,7 +139,12 @@ public:
 
 	iterator begin()
 	{
-		return iterator(_M_begin.load());
+		auto ret = iterator(_M_begin.load());
+        if (_M_begin.load()->_M_deleted)
+		{
+            ++ret;
+		}
+        return ret;
 	}
 	
 	iterator end()
@@ -221,23 +221,24 @@ public:
         ++_M_count;
 		return iterator(new_node);
 	}
-
-	iterator try_insert(T value)
-	{
-		
-		return iterator(_M_end.load());
-	}
 	
 	iterator erase(T value)
 	{
-		auto head = _M_begin.load();
+        auto ret = find(value);
+		if (ret == end())
+		{
+            return ret;
+		}
 
-		return iterator(_M_end.load());
+		auto raw = ret.get_unsafe_pointer();
+        bool expected = false;
+		if (raw->_M_deleted.compare_exchange_strong(expected, true))
+		{
+            --_M_count;
+		}
+        return ret;
 	} 
 
-	void erase(iterator value)
-	{
-	}
 private:
 	std::atomic<node_type*> _M_begin;
 	std::atomic<node_type*> _M_end;
@@ -246,7 +247,8 @@ private:
 };
 
 template<class KeyT, class ValueT, 
-		class HashFuncT = std::hash<KeyT>, class AllocatorT = std::allocator<std::pair<KeyT, ValueT>>>
+		class HashFuncT = std::hash<KeyT>, 
+		class AllocatorT = std::allocator<std::pair<KeyT, ValueT>>>
 class hash_table_lock_free {
 
 	using value_type = std::pair<KeyT, ValueT>;
@@ -261,7 +263,7 @@ class hash_table_lock_free {
 
 	};
 
-	using iterator = typename set_lock_free<value_type,
+	using iterator = typename set_lf<value_type,
 						equal_value_type,
 						allocator_type>::iterator;
 
@@ -271,7 +273,7 @@ class hash_table_lock_free {
 			return lhs == rhs;
 		}
 	};
-	using bucket_type = set_lock_free<iterator, 
+	using bucket_type = set_lf<iterator, 
 						equal_iterator_type, 
 						allocator_type>;
 	using vec_bucket = bucket_type*;

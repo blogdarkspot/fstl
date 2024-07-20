@@ -9,7 +9,7 @@ class SetLockFreeTest : public testing::Test
 {
   protected:
 	  SetLockFreeTest() = default;
-	  set_lock_free<int> _M_set;
+	  set_lf<int> _M_set;
 };
 
 TEST_F(SetLockFreeTest, one_thread_insert_test)
@@ -22,8 +22,6 @@ TEST_F(SetLockFreeTest, one_thread_insert_test)
 	}
 	
 	EXPECT_EQ(data.size(), _M_set.size());
-
-
 }
 
 TEST_F(SetLockFreeTest, two_threads_insert_test)
@@ -67,5 +65,23 @@ TEST_F(SetLockFreeTest, find_values)
         auto r = _M_set.find(v);
         EXPECT_NE(_M_set.end(), r);
         EXPECT_EQ(*r, v);
+    }
+}
+
+TEST_F(SetLockFreeTest, erase_values)
+{
+    std::vector<int> data = {1, 2, 3, 4, 5};
+    for (const auto& v : data)
+    {
+        _M_set.insert(v);
+    }
+    auto size = data.size();
+    for (const auto& v : data)
+    {
+        auto r = _M_set.erase(v);
+        auto it = _M_set.find(v);
+        EXPECT_EQ(*r, v);
+        EXPECT_EQ(_M_set.end(), it);
+        EXPECT_EQ(--size, _M_set.size());
     }
 }
