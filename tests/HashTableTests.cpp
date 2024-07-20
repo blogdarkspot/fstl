@@ -3,7 +3,7 @@
 #include "hash_table_lock_free.hpp"
 #include <thread>
 #include <string>
-#include <Vector>
+#include <vector>
 
 class SetLockFreeTest : public testing::Test
 {
