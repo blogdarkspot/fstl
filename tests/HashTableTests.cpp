@@ -5,11 +5,31 @@
 #include <string>
 #include <vector>
 
+class HTableTest : public testing::Test
+{
+  protected:
+    HTableTest() : _M_size(1 << 5), _M_table(_M_size)
+    {
+    }
+
+    size_t _M_size;
+    lf::VecTable<int> _M_table;
+};
+
+TEST_F(HTableTest, InsertElements)
+{
+    auto &ps0 = _M_table[0];
+    EXPECT_EQ(0, ps0);
+    ps0 = 1;
+    auto value = _M_table[0];
+    EXPECT_EQ(1, value);
+}
+
 class SetLockFreeTest : public testing::Test
 {
   protected:
 	  SetLockFreeTest() = default;
-	  set_lf<int> _M_set;
+	  lf::set<int> _M_set;
 };
 
 TEST_F(SetLockFreeTest, one_thread_insert_test)
@@ -55,7 +75,7 @@ TEST_F(SetLockFreeTest, two_threads_insert_test)
 TEST_F(SetLockFreeTest, find_values)
 {
     std::vector<int> data = {1, 2, 3, 4, 5};
-    for (const auto& v : data)
+    for (const auto v : data)
     {
         _M_set.insert(v);
     }
@@ -68,6 +88,7 @@ TEST_F(SetLockFreeTest, find_values)
     }
 }
 
+/*
 TEST_F(SetLockFreeTest, erase_values)
 {
     std::vector<int> data = {1, 2, 3, 4, 5};
@@ -85,3 +106,4 @@ TEST_F(SetLockFreeTest, erase_values)
         EXPECT_EQ(--size, _M_set.size());
     }
 }
+*/

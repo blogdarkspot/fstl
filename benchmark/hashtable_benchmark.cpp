@@ -3,7 +3,7 @@
 #include <unordered_set>
 #include <mutex>
 
-static set_lf<int> SetLockFreeTestObj;
+static lf::set<int> SetLockFreeTestObj;
 
 static std::unordered_set<int> SetSTLTestObj;
 static std::mutex STLMutex;
