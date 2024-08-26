@@ -5,10 +5,26 @@
 #include <string>
 #include <vector>
 
-class HTableTest : public testing::Test
+class HashTableTest : public testing::Test
 {
   protected:
-    HTableTest() : _M_size(1 << 5), _M_table(_M_size)
+    HashTableTest()
+    {
+    }
+
+    lf::HashTable<int, float> _M_hash;
+};
+
+TEST_F(HashTableTest, CreateHash)
+{
+    EXPECT_EQ(0x00, _M_hash.size());
+    _M_hash.insert({1, 1.0f});
+}
+
+class VecTableTest : public testing::Test
+{
+  protected:
+    VecTableTest() : _M_size(1 << 5), _M_table(_M_size)
     {
     }
 
@@ -16,13 +32,30 @@ class HTableTest : public testing::Test
     lf::VecTable<int> _M_table;
 };
 
-TEST_F(HTableTest, InsertElements)
+TEST_F(VecTableTest, InsertElements)
 {
     auto &ps0 = _M_table[0];
     EXPECT_EQ(0, ps0);
     ps0 = 1;
     auto value = _M_table[0];
     EXPECT_EQ(1, value);
+}
+
+TEST_F(VecTableTest, Insert10Elements)
+{
+    auto values = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10};
+    size_t count = 0;
+    for (auto value : values)
+    {
+        _M_table[count++] = value;
+    }
+
+    count = 0;
+
+    for (auto value : values)
+    {
+        EXPECT_EQ(value, _M_table[count++]);
+    }
 }
 
 class SetLockFreeTest : public testing::Test
@@ -88,7 +121,7 @@ TEST_F(SetLockFreeTest, find_values)
     }
 }
 
-/*
+
 TEST_F(SetLockFreeTest, erase_values)
 {
     std::vector<int> data = {1, 2, 3, 4, 5};
@@ -101,9 +134,8 @@ TEST_F(SetLockFreeTest, erase_values)
     {
         auto r = _M_set.erase(v);
         auto it = _M_set.find(v);
-        EXPECT_EQ(*r, v);
         EXPECT_EQ(_M_set.end(), it);
         EXPECT_EQ(--size, _M_set.size());
     }
 }
-*/
+

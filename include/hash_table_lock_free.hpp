@@ -223,7 +223,6 @@ class set
         {
             return ret;
         }
-        ret++; // return the next one;
         auto raw = ret.get_unsafe_pointer();
         bool expected = false;
         if (raw->_M_deleted.compare_exchange_strong(expected, true))
@@ -234,6 +233,7 @@ class set
         {
             return end();
         }
+        ++ret; // return the next one;
         return ret;
     }
 
@@ -244,40 +244,7 @@ class set
     allocator_node _M_allocator;
 };
 
-template <typename T, typename Allocator = std::allocator<T>> struct forward_list
-{
-    using node_type = forward_node<T>;
-    using iterator = forward_iterator_list<node_type>;
 
-    iterator insert(forward_node<T> *node)
-    {
-        auto orign_begin = _M_begin.load();
-        node->_M_next = orign_begin;
-        while (!_M_begin.compare_exchange_strong(orign_begin, node))
-        {
-            node->_M_next = orign_begin;
-        }
-        return iterator(node);
-    }
-
-    void erase(iterator &value)
-    {
-    }
-
-    iterator begin()
-    {
-        return iterator(_M_begin.load());
-    }
-
-    iterator end()
-    {
-        return iterator(_M_end.load());
-    }
-
-  private:
-    std::atomic<node_type *> _M_begin;
-    std::atomic<node_type *> _M_end;
-};
 
 /*
  */
@@ -355,11 +322,130 @@ template <class T, class Allocator = std::allocator<T>> struct VecTable
     allocator_type _M_alloc_bucket;
     std::atomic<bool> _M_lock;
     size_type _M_size;
+    size_type _M_capacity;
     pointer _M_buckets;
+};
+
+template<typename Key, typename Value, 
+        typename HashFunc = std::hash<Key>,
+        typename Compare = std::equal_to<Key>,
+        typename Allocator = std::allocator<std::pair<Key, Value>>>
+class HashTable
+{
+  public:
+    using value_type = std::pair<Key, Value>; 
+    using allocator = Allocator;
+    
+    using set_type = typename set<Key, Compare>;
+    using bucket_type = typename VecTable<set_type>;
+    using size_type = typename bucket_type::size_type;
+
+    HashTable() : _M_capacty(1 << 5), 
+                _M_size(0x00),
+                _M_bucket(nullptr), _M_old_bucket(nullptr)
+    {
+        _M_bucket.store(new bucket_type(_M_capacty));
+    }
+
+    void insert(value_type value)
+    {
+        auto index = get_index(value.first);
+        auto bucket = _M_bucket.load();
+
+        (*bucket)[index].insert(value.first);
+
+        if (_M_bucket.load() != bucket)
+        {
+            insert(value);
+        }
+        else
+        {
+            if (load_factor() >= _M_max_load_factor)
+            {
+                bucket_type* null = nullptr;
+                if (_M_old_bucket.compare_exchange_strong(null, bucket))
+                {
+                    auto capacity = _M_capacty << 1;
+                    auto new_bucket = new bucket_type(capacity);
+                    _M_bucket.store(new_bucket);
+                    _M_capacty = capacity;
+                    rehash();
+                }
+            }
+        }
+    }
+
+    size_type size()
+    {
+        return _M_size;
+    }
+
+    float load_factor()
+    {
+        auto bucket = _M_bucket.load();
+        return (float)bucket->size() / size();
+    }
+    
+  private:
+
+    size_type get_index(Key key)
+    {
+        auto hash = _M_hasher(key);
+        auto bucket = _M_bucket.load();
+        return hash % bucket->size();
+    }
+
+    void rehash()
+    {
+
+    }
+
+    constexpr static float _M_max_load_factor = 0.8f;
+    size_type _M_capacty;
+    size_type _M_size;
+    std::atomic<bucket_type*> _M_bucket;
+    std::atomic<bucket_type*> _M_old_bucket;
+    HashFunc _M_hasher;
 };
 } // namespace lf
 
 /*
+
+template <typename T, typename Allocator = std::allocator<T>> struct forward_list
+{
+    using node_type = forward_node<T>;
+    using iterator = forward_iterator_list<node_type>;
+
+    iterator insert(forward_node<T> *node)
+    {
+        auto orign_begin = _M_begin.load();
+        node->_M_next = orign_begin;
+        while (!_M_begin.compare_exchange_strong(orign_begin, node))
+        {
+            node->_M_next = orign_begin;
+        }
+        return iterator(node);
+    }
+
+    void erase(iterator &value)
+    {
+    }
+
+    iterator begin()
+    {
+        return iterator(_M_begin.load());
+    }
+
+    iterator end()
+    {
+        return iterator(_M_end.load());
+    }
+
+  private:
+    std::atomic<node_type *> _M_begin;
+    std::atomic<node_type *> _M_end;
+};
+
 template<class KeyT, class ValueT, 
 		class HashFuncT = std::hash<KeyT>, 
 		class AllocatorT = std::allocator<std::pair<KeyT, ValueT>>>

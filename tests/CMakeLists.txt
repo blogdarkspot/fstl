@@ -7,7 +7,7 @@ target_sources(UnitTests PRIVATE LinkedListTests.cpp
 				 HashTableTests.cpp
 				 AlgorithmsTests.cpp
 				 BinaryTreeTests.cpp 
-				 GraphTests.cpp)
+				 GraphTests.cpp "SmartPtrTest.cpp")
 target_include_directories(UnitTests PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/../include")
 target_link_libraries(UnitTests PRIVATE GTest::gtest_main)
 target_compile_features(UnitTests PRIVATE cxx_std_17)
