@@ -1,5 +1,12 @@
 #include <gtest/gtest.h>
-#include "smart_ptr.hpp"
+#include "memory.hpp"
+
+TEST(SmartPtr, Test1)
+{
+    memory::SmartPtr<int> ptr;
+    *ptr = 1;
+    EXPECT_EQ(*ptr, 1);
+}
 
 class WrapPtrTest : public testing::Test
 {
