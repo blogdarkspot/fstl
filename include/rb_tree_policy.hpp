@@ -4,6 +4,419 @@
 #include<utility>
 #include"common_binary_tree.hpp"
 
+class NullType
+{
+	enum
+	{
+		enabled = false
+	};
+};
+
+template <typename T, typename Allocator>
+struct Node2
+{
+    using value_type = T;
+	using allocator = Allocator;
+	using node_type = Node2<value_type, allocator>;
+    using properties_type = NullType;
+
+    value_type _M_value;
+    properties_type _M_properties;	
+	node_type* _M_left;
+    node_type* _M_right;
+};
+
+
+struct RBProperties
+{
+    enum
+    {
+        enabled = true
+    };
+
+	enum 
+	{
+		RED = true,
+		BLACK = false
+	} _M_color = RED;
+};
+
+struct OrderStatisticsProperties : public RBProperties
+{
+    size_t _M_size = 0;
+};
+
+template <typename T, typename Properties = NullType, 
+	typename Allocator = std::allocator<T>>
+struct Node
+{
+	private:
+	  using node_type = Node<T, Properties, Allocator>;
+  public:
+    using value_type = T;
+	using allocator = Allocator;
+	using alloc_traits = typename std::allocator_traits<allocator>;
+    using properties_type = Properties;
+
+	Node() = default;
+
+	Node(value_type &&value) : _M_value(std::move(value))
+    {
+    }
+
+	const properties_type& get_cproperties() const
+	{
+        return _M_properties;
+	}
+
+	properties_type& get_properties()
+    {
+        return _M_properties;
+	}
+
+    properties_type _M_properties;
+    value_type _M_value;
+	node_type* _M_left;
+    node_type* _M_right;
+    node_type* _M_parent;
+    bool _M_isNil;
+};
+
+template<typename NodeT>
+struct NodeTraits
+{
+	using value_type = NodeT;
+	using pointer = value_type*;
+	using reference = value_type&;
+	using allocator = typename std::allocator_traits<typename NodeT::allocator>::template rebind_alloc<NodeT>;
+	using iterator = tree_iterator<NodeT>;
+
+	using properties_type = typename value_type::properties_type;
+
+	template<typename... Params>
+	static pointer create(allocator& alloc, Params &&...args)
+	{
+		using alloc_traits = typename std::allocator_traits<allocator>;
+        pointer ret = alloc_traits::allocate(alloc, 1);
+        alloc_traits::construct(alloc, ret, std::forward<Params>(args)...);
+        return ret;
+	}
+
+	static pointer delete_node(allocator& alloc, pointer node)
+	{
+		using alloc_traits = typename std::allocator_traits<allocator>;
+        alloc_traits::destroy(alloc, node);
+        alloc_traits::deallocate(alloc, node, 1);
+	}
+	
+	static pointer get_parent(pointer node)
+	{
+        return node->_M_parent;
+	}
+
+	static pointer get_left(pointer node)
+	{
+        return node->_M_left;
+	}
+
+	static pointer get_right(pointer node)
+	{
+        return node->_M_right;
+	}
+
+	/**     P               P
+	*       |               |
+			x				Y
+		   / \             / \
+		  Z   Y  ----->   X   B
+			 / \		 / \
+		    A  B        Z   A  
+	*/
+	static pointer rotate_left(pointer& node)
+	{
+        auto r = node->_M_right;
+        r->_M_parent = node->_M_parent;
+		if (!r->_M_parent->_M_isNil)
+		{
+            r->_M_parent = r;
+		}
+        node->_M_parent = r;
+		if (r->_M_left)
+		{
+            node->_M_right = r->_M_left;
+            r->_M_left->_M_parent = node;
+		}
+        r->_M_left = node;
+        return r;
+	}
+
+	/********************************
+	        P               P
+	        |               |
+			x				Z
+		   / \             / \
+		  Z   Y  ----->   A   X
+		 / \     			 / \
+		A  B                B   Y  
+	*********************************/
+	static pointer rotate_right(pointer& node)
+	{
+        auto l = node->_M_left;
+        auto l->_M_parent = node->_M_parent;
+		if (!l->_M_parent->_M_isNil)
+		{
+            l->_M_parent = l;
+		}
+        node->_M_parent = l;
+		if (!l->_M_right->_M_isNil)
+		{
+            node->_M_left = l->_M_right;
+            node->_M_left->_M_parent = node;
+		}
+        l->_M_right = node;
+        return l;
+	}
+
+	static bool less(pointer x, pointer y)
+	{
+        return x->_M_value < y->_M_value;
+	}
+};
+
+
+template<typename Node> class OrderStatistics
+{
+  public:
+
+	  Node* select(Node* root, size_t rank)
+	  {
+          auto r = root->_M_left->_M_properties._M_size + 1; 
+		  if (r == rank)
+              return root;
+		  else if (rank < r)
+		  {
+              return select(root->_M_left, rank);
+		  }
+		  else
+		  {
+              return select(root->_M_right, rank - r);
+		  }
+	  }
+
+	  size_t rank(Node* root, Node* node)
+	  {
+          size_t ret += node->_M_left->_M_properties._M_size + 1;
+		  while (node != root)
+		  {
+			  if (node->_M_parent->_M_right == node)
+			  {
+                  ret += node->_M_parent->_M_left->_M_properties._M_size + 1;
+			  }
+              node = node->_M_parent;
+		  } 
+
+          return ret;
+	  }
+};
+
+template<typename Node,
+	template<class> typename Compare = std::less> class Delete
+{
+	using node_traits = NodeTraits<Node>;
+	using value_type = typename node_traits::value_type;
+
+	void erase(value_type** root, value_type* val)
+	{
+		
+		if (val->_M_left->_M_isNil)
+		{
+            transplat(val, val->_M_right);
+			if (val->_M_parent->_M_isNil)
+			{
+                (*root) = val;
+			}
+		}
+		else if (val->_M_right->_M_isNil)
+		{
+            transplat(val, val->_M_left);
+			if (val->_M_parent->_M_isNil)
+			{
+                (*root) = val;
+			}
+		}
+		else
+		{
+		}
+	}
+
+
+	value_type* minimum(value_type* val)
+	{
+		while (!val->_M_left->_M_properties._M_isNil)
+		{
+            val = val->_M_left;
+		}
+        return val;
+	}
+
+	void transplat(value_type* x, value_type* y)
+	{
+		if (x->_M_parent->right == x)
+		{
+            x->_M_parent->_right = y;
+		}
+		else
+		{
+            x->_M_parent->_left = y;
+		}
+		if (!y->_M_isNil)
+		{
+            y->_M_parent = x->_M_parent;
+		}
+	}
+};
+
+template<typename Node, 
+	template<class> typename Compare = std::less> class InsertRBTree
+{
+  public:
+	using node_traits = NodeTraits<Node>;
+	using value_type = typename node_traits::value_type;
+	using alloc_node = typename node_traits::allocator;
+	using node_iterator = typename node_traits::iterator;
+	using value = typename value_type::value_type;
+	using compare_func = typename Compare<value>;
+
+	void insert(Node** root, alloc_node& allocator, value&& val)
+	{
+        auto root_ = *root;
+        auto found_ = root_;
+        compare_func compare_;
+
+		while (!found_->_M_isNil)
+		{
+            root_ = found_;
+			if (compare_(found_->_M_value, val))
+			{
+                found_ = found_->_M_left;
+			}
+            else if (compare_(val, found_->_M_value))
+			{
+                found_ = found_->_M_right;
+			}
+			else
+			{
+                break;
+			}
+		}
+
+		if (!found_->_M_isNil)
+		{
+
+		}
+		
+		auto new_node = node_traits::create(allocator, std::move(val));
+
+		new_node->_M_parent = root_;
+        new_node->_M_right = root_->_M_parent;
+        new_node->_M_left = root_->_M_parent;
+
+		if (root_->_M_isNil)
+		{
+            *root = root_;
+		}
+		else
+		{
+			if (compare_(root_->_M_value, new_node->_M_value))
+			{
+                root_->_M_left = new_node;	
+			}
+			else
+			{
+                root_->_M_right = new_node;
+			}
+		}
+	}
+
+	private:
+
+	void fixup_tree(Node** root, Node* new_node)
+	{
+        new_node->_M_properties._M_color = RBProperties::RED;
+
+		while (new_node->_M_parent->_M_properties.Color == RBProperties::RED)
+		{
+            auto parent = new_node->_M_parent;
+			
+			if (parent->_M_parent->_M_right == parent)
+			{
+                auto uncle = parent->_M_parent->_M_left;
+
+				if (uncle->_M_properties.Color == RBProperties::RED)
+				{
+                    uncle->_M_properties.Color = RBProperties::BLACK;
+                    parent->_M_properties.Color = RBProperties::BLACK;
+                    parent->_M_parent->_M_properties.Color = RBProperties::RED;
+                    new_node = parent->_M_parent;
+				}
+				else
+				{
+					if (new_node == parent->left)
+					{
+                       new_node = parent;
+                       auto ret = node_traits::rotate_right(new_node);
+					   if (ret->_M_parent->_M_isNil)
+					   {
+                           *root = ret;
+					   }
+					}
+                    new_node->_M_parent->_M_properties.Color = RBProperties::BLACK;
+                    new_node->_M_parent-> _M_parent->_M_properties.Color = RBProperties::RED;
+                    new_node = parent->_M_parent->_M_parent;
+                    auto ret = node_traits::rotate_left(new_node);
+					if (ret->_M_parent->_M_isNil)
+					{
+                        *root = ret;
+					}
+				}
+			}
+			else
+			{
+                auto uncle = parent->_M_parent->_M_right;
+				if (uncle->_M_properties._M_color == RBProperties::RED)
+				{
+                    uncle->_M_properties._M_color = RBProperties::BLACK;
+                    parent->_M_properties._M_color = RBProperties::BLACK;
+                    parent->_M_parent->_M_properties._M_color = RBProperties::RED;
+                    new_node = parent->_M_parent;
+				}
+				else
+				{
+					if (new_node == parent->_M_right)
+					{
+						auto ret = node_traits::rotate_left(parent)
+						if(ret->_M_parent->_M_isNil) {
+                            *root = ret;
+						}
+                        new_node = parent;
+					}
+
+					new_node->_M_parent->_M_properties._M_color = RBProperties::BLACK;
+                    new_node->_M_parent->_M_parent->_M_properties._M_color = RBProperties::RED;
+                    new_node = new_node->_M_parent->_M_parent;	
+					auto ret = node_traits::rotate_right(new_node);
+					if (ret->_M_parent->_M_isNil)
+					{
+                        *root = ret;
+					}
+				}
+			}
+
+		}
+        (*root)->_M_properties._M_Color = RBProperties::BLACK;
+	}
+};
+
 template<typename Key, typename Value, typename Compare, typename Allocator>
 class RBTreePolicy {
 

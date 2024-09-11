@@ -3,8 +3,122 @@
 
 #include <atomic>
 
+
 namespace memory
 {
+
+template<typename T>
+class IntrusiveRefCount
+{
+  public:
+
+      using value_type = T;
+      using reference = T&;
+      using pointer = T*;
+      
+      
+    template<typename... Params>
+    IntrusiveRefCount(Params &&...args) : 
+        _M_data(std::forward<Params>(args)...), 
+        _M_count(1)
+    {
+    }
+
+    reference operator*()
+    {
+        return _M_data;
+    }
+
+    pointer operator->()
+    {
+        return &_M_data;
+    }
+
+    IntrusiveRefCount(IntrusiveRefCount<T> &other) = delete;
+    IntrusiveRefCount(const IntrusiveRefCount<T> &other) = delete;
+    IntrusiveRefCount(IntrusiveRefCount<T> &&other) = delete;
+    IntrusiveRefCount(const IntrusiveRefCount<T> &&other) = delete;
+
+    void increment()
+    {
+        ++_M_count;
+    }
+
+    bool release()
+    {
+        return --_M_count == 0;
+    }
+
+  private:
+    T _M_data;
+    std::atomic_uint64_t _M_count;
+};
+
+template<typename Ty>
+class shared_ptr_a
+{
+  public:
+
+    using reference = Ty&;
+    using pointer = Ty*;
+
+    
+    template<typename... Params> shared_ptr_a(Params &&...args) 
+    {
+        _M_refCount = new IntrusiveRefCount<Ty>(std::forward<Params>(args)...);
+    }
+
+    pointer operator->()
+    {
+        return _M_refCount;
+    }
+
+    reference operator*()
+    {
+        return *_M_refCount;
+    }
+
+    shared_ptr_a(const shared_ptr_a<Ty> &other) = delete;
+    shared_ptr_a<Ty> &operator=(const shared_ptr_a<Ty> &other) = delete;
+
+    /**
+    Porque pegar primeiro o ref count e garantir a ordem de execução?
+    other pode ser um objeto que vive em uma memória compartilhada então possa ser que este mesmo
+    objeto esteja passando por uma atribuição, então caso seja este o cenário manter nesta ordem
+    garante que pegamos um refcount válido seja o antigo ou o novo
+    */
+    shared_ptr_a(shared_ptr_a<Ty>& other)
+    {
+        _M_refCount = other._M_refCount;
+        _M_refCount->increment();
+    }
+
+    shared_ptr_a<Ty>& operator=(shared_ptr_a<Ty> &other)
+    {
+        shared_ptr_a<Ty> tmp(other); //increment 1;
+        swap(tmp, *this);
+        return *this;
+    }
+
+    ~shared_ptr_a()
+    {
+        if (_M_refCount->release())
+        {
+            delete _M_refCount;
+        }
+    }
+
+  private:
+
+    void swap(shared_ptr_a<Ty>& x, shared_ptr_a<Ty>& y)
+    {
+        auto tmp = x._M_refCount;
+        x._M_refCount = y._M_refCount;
+        y._M_refCount = tmp;
+    }
+
+    IntrusiveRefCount<Ty>* _M_refCount;
+};
 
 class RefCount
 {
@@ -180,7 +294,7 @@ class WrapPtr : public RefCount2
 
     bool reset(storage_type *ptr)
     {
-        if (count() == 0)
+        if (count() == 0 || _M_obj == nullptr)
         {
             _M_obj = ptr;
             increment();

@@ -498,7 +498,7 @@ class HashTable
                 if (vec->lock())
                 {
                     auto& oldbucket = use_bucket1 ? _M_bucket2 : _M_bucket1;
-                    auto new_bucket = new bucket_type(bucket, capacity << 1);
+                    bucket_type* new_bucket = nullptr; // new bucket_type(bucket, capacity << 1);
                     auto ret = oldbucket.reset(new_bucket);
                     new_bucket->update();
                     _M_use_bucket1.store(!use_bucket1);

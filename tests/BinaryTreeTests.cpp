@@ -1,8 +1,24 @@
 #include <gtest/gtest.h>
-#include <algorithm>
-#include "binary_tree.hpp"
 #include "rb_tree_policy.hpp"
 #include "binary_search_policy.hpp"
+
+TEST(RBTreeInsertPolicy, InsertRoot)
+{
+	using node_type = Node<int, RBProperties>;
+	using node_traits = typename NodeTraits<node_type>;
+    node_traits::allocator allocator;
+    auto root = node_traits::create(allocator);
+
+    root->_M_parent = root;
+    root->_M_left = root;
+    root->_M_right = root;
+    root->_M_isNil = true;
+
+	auto insert_policy = InsertRBTree<node_traits::value_type>();
+    insert_policy.insert(&root, allocator, 1);
+}
+
+/*
 
 class BSTreeTest : public ::testing::Test {
 	protected:
@@ -22,6 +38,7 @@ using tree = BinaryTree<int, int, std::less<int>, std::allocator<std::pair<int, 
 using node_ptr = tree::node_type*;
 using node_value = tree::node_type;
 using Color = node_value::Color;
+
 
 
 template<typename Key, typename Value>
@@ -52,6 +69,7 @@ struct ExpectedNodeValues {
 	
 	tree _M_tree;
 };
+*/
 
 /*
 TEST_F(RBTreeTest, InsertRoot)

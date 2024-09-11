@@ -67,10 +67,11 @@ template<typename Node>
 struct tree_iterator
 {
 	using iterator_category = std::bidirectional_iterator_tag;
-	using value_type = typename Node::type_value;
+	using value_type = typename Node::value_type;
 	using pointer = value_type*;
 	using reference = value_type&;
 	using iterator_type = tree_iterator<Node>;
+	using node_type = Node;
 
 
 	tree_iterator(pointer source) : _M_data(source) {}
