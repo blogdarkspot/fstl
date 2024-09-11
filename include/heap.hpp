@@ -45,6 +45,7 @@ private:
 			maxHeapfy(begin, end, current + 1);
 		}
 	}
+
 	static void swap(Iterator& x, Iterator& y)
 	{
 		auto tmp = *x;
