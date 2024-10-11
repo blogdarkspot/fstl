@@ -1,8 +1,9 @@
 #include <benchmark/benchmark.h>
+/*
 #include "hash_table_lock_free.hpp"
-#include <unordered_set>
-#include <unordered_map>
 #include <mutex>
+#include <unordered_map>
+#include <unordered_set>
 
 struct dummyHash
 {
@@ -65,5 +66,5 @@ static void BM_InsertValuesSTLHashTable(benchmark::State &state)
 // Register the function as a benchmark
 BENCHMARK(BM_InsertValuesSTLHashTable)->ThreadRange(1, 8);
 
-
+*/
 BENCHMARK_MAIN();

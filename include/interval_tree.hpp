@@ -1,103 +1,6 @@
 #pragma once
-#include <assert.h>
 #include <list>
 #include <memory>
-#include <span>
-
-struct Ranges
-{
-    using ranges = std::list<std::span<int>>;
-    Ranges() = default;
-    Ranges(ranges &list, std::size_t size) : m_ranges(list), m_size(size)
-    {
-    }
-    ranges get_range(std::size_t index, std::size_t count)
-    {
-        assert(index >= 0 && index < m_size);
-        assert(count < m_size || index == 0 && count == m_size);
-        ranges ret;
-        auto it = m_ranges.begin();
-        auto i = it->size();
-        while (i < index)
-        {
-            i += it->size();
-            ++it;
-        }
-        index = index - (i - it->size());
-        while (count)
-        {
-            auto x = it->size() - index;
-            auto tot = count > x ? x : count;
-            count -= tot;
-            auto sub = it->subspan(index, tot);
-            ret.push_back(sub);
-            index = 0;
-            ++it;
-        }
-        return ret;
-    }
-    void remove_range(std::size_t index, std::size_t count)
-    {
-        assert(index >= 0 && index < m_size);
-        assert(count < m_size || index == 0 && count == m_size);
-        m_size -= count;
-        auto it = m_ranges.begin();
-        auto i = it->size();
-        while (i < index)
-        {
-            i += it->size();
-            ++it;
-        }
-        index = index - (i - it->size());
-        if (index)
-        {
-            auto x = it->size() - index;
-            auto tot = count > x ? x : count;
-            auto sp = *it;
-            auto sub = sp.subspan(0, index);
-            *it = sub;
-            if (count == tot)
-            {
-                sub = sp.subspan(index + count);
-                it = m_ranges.insert(++it, sub);
-            }
-            ++it;
-            count -= tot;
-        }
-        while (count)
-        {
-            auto x = it->size();
-            auto tot = count > x ? x : count;
-            count -= tot;
-            if (tot == it->size())
-            {
-                it = m_ranges.erase(it);
-            }
-            else
-            {
-                auto sub = it->subspan(tot);
-                *it = sub;
-                ++it;
-            }
-        }
-    }
-    void push_back(std::span<int> range)
-    {
-        m_size += range.size();
-        m_ranges.push_back(range);
-    }
-    void push_front(std::span<int> range)
-    {
-        m_size += range.size();
-        m_ranges.push_front(range);
-    }
-    std::size_t size() const
-    {
-        return m_size;
-    }
-    ranges m_ranges;
-    std::size_t m_size = 0x00;
-};
 
 template <typename T1, typename T2> struct Pair
 {
@@ -122,6 +25,7 @@ template <typename Ty> struct Node
     bool m_nil;
     Ty m_value;
     size_t m_size;
+    size_t m_total = 0x00;
 };
 
 template <typename Node> struct Iterator
@@ -217,16 +121,18 @@ template <typename Node> struct Iterator
     node_sptr m_data;
 };
 
-template <typename Key, typename Value> class OrderStatisticRBtree
+template <typename Key, typename Value> class OSIntervalTree
 {
   public:
     using node_type = Node<Pair<Key, Value>>;
     using node_sptr = typename node_type::node_sptr;
     using iterator = Iterator<node_type>;
-    OrderStatisticRBtree()
+
+    OSIntervalTree() : m_size(0)
     {
         init();
     }
+
     iterator begin()
     {
         if (m_root == m_nil)
@@ -235,30 +141,38 @@ template <typename Key, typename Value> class OrderStatisticRBtree
         }
         return iterator(minimum(m_root));
     }
+
     iterator end()
     {
         return iterator(m_nil);
     }
+
     node_sptr minimum(node_sptr x)
     {
         while (x->m_left != m_nil)
+        {
             x = x->m_left;
+        }
         return x;
     }
-    iterator os_search(size_t rank)
+
+    std::pair<iterator, size_t> os_search(size_t rank)
     {
         if (m_root == m_nil || rank > m_size)
         {
-            return end();
+            return {end(), -1};
         }
         return _os_search(rank, m_root);
     }
-    iterator _os_search(size_t rank, node_sptr node)
+
+    std::pair<iterator, size_t> _os_search(size_t rank, node_sptr node)
     {
-        size_t r = node->m_left->m_size + 1;
-        if (r == rank)
+        size_t r = node->m_left->m_size + node->m_total;
+        auto overlaped = rank <= r && rank > node->m_left->m_size;
+
+        if (overlaped)
         {
-            return iterator(node);
+            return {iterator(node), (rank - node->m_left->m_size)};
         }
         if (rank < r)
         {
@@ -269,45 +183,18 @@ template <typename Key, typename Value> class OrderStatisticRBtree
             return _os_search(rank - r, node->m_right);
         }
     }
-    void insert(const Key &key, const Value &val)
+
+    void insert(const Key &key, Value val, std::size_t weight = 1)
     {
-        auto node = std::make_shared<node_type>();
+        node_sptr node = std::make_shared<node_type>();
+        node->m_total = weight;
         node->m_value.first = key;
         node->m_value.second = val;
-        node->m_size = 1;
-        _insert(node);
-        ++m_size;
-    }
-    iterator erase(iterator it)
-    {
-        auto x = m_root;
-        auto y = m_nil;
-        while (x != m_nil)
-        {
-            y = x;
-            x->m_size -= 1;
-            if (it->first < x->m_value.first)
-            {
-                x = x->m_left;
-            }
-            else if (x->m_value.first < it->first)
-            {
-                x = x->m_right;
-            }
-            else
-            {
-                break;
-            }
-        }
-        if (x != m_nil && x == y)
-        {
-            auto ret = iterator(x);
-            ++ret;
-            --m_size;
-            _erase(x);
-            return ret;
-        }
-        return m_nil;
+        node->m_left = m_nil;
+        node->m_right = m_nil;
+        node->m_size = weight;
+        _insert(node, weight);
+        m_size += weight;
     }
 
     iterator erase(const Key &key)
@@ -317,7 +204,6 @@ template <typename Key, typename Value> class OrderStatisticRBtree
         while (x != m_nil)
         {
             y = x;
-            x->m_size -= 1;
             if (key < x->m_value.first)
             {
                 x = x->m_left;
@@ -335,21 +221,21 @@ template <typename Key, typename Value> class OrderStatisticRBtree
         {
             auto ret = iterator(x);
             ++ret;
-            --m_size;
+            m_size -= x->m_total;
             _erase(x);
             return ret;
         }
         return m_nil;
     }
 
-    void _insert(node_sptr z)
+    void _insert(node_sptr z, size_t weight = 1)
     {
         auto x = m_root;
         auto y = m_nil;
         while (x != m_nil)
         {
             y = x;
-            x->m_size += z->m_value.size();
+            x->m_size += weight;
             if (z->m_value.first < x->m_value.first)
             {
                 x = x->m_left;
@@ -441,17 +327,27 @@ template <typename Key, typename Value> class OrderStatisticRBtree
         auto y_original_color = y->m_color;
         auto last = z;
         node_sptr x = nullptr;
+        // aqui o primeiro ponto vamos atualizar
+        //  do Z até o root pois é garantido que do Z
+        //  para cima o valor que recisa subtrair é o weight do Z
+        {
+            auto backdrop = z->m_parent;
+            while (backdrop != m_nil)
+            {
+                (backdrop->m_size) -= z->m_total;
+                backdrop = backdrop->m_parent;
+            }
+        }
+
         if (z->m_left == m_nil)
         {
             x = z->m_right;
-            x->m_size = z->m_size;
             transplant(z, z->m_right);
             last = x->m_parent;
         }
         else if (z->m_right == m_nil)
         {
             x = z->m_left;
-            x->m_size = z->m_size;
             transplant(z, z->m_left);
             last = x->m_parent;
         }
@@ -474,15 +370,25 @@ template <typename Key, typename Value> class OrderStatisticRBtree
             y->m_left = z->m_left;
             y->m_left->m_parent = y;
             y->m_color = z->m_color;
-            y->m_size = z->m_size;
+            // após o transplante aqui é necessário recalcular
+            // como foi movido abaixo da direita para cima
+            // m_size do right precisa atualizar para - y->weight
+            // send assim o y->m_size é somente a soma dos dois
+            // sizes left and right
+            y->m_size = y->m_left->m_size + y->m_right->m_size;
             last = y;
+            // aqui vamos atualizar a parte entre o nó x até y que foi  substituído pelo z
+            //  caso não tenha sido substituido x->m_parent == last e nada deveria acontecer
+            {
+                auto backdrop = x->m_parent;
+                while (backdrop != last)
+                {
+                    (backdrop->m_size) -= last->m_total;
+                    backdrop = backdrop->m_parent;
+                }
+            }
         }
-        auto backdrop = x->m_parent;
-        while (backdrop != last)
-        {
-            --(backdrop->m_size);
-            backdrop = backdrop->m_parent;
-        }
+
         if (y_original_color == Color::Black)
         {
             delete_fixup(x);
@@ -599,9 +505,8 @@ template <typename Key, typename Value> class OrderStatisticRBtree
         }
         y->m_left = x;
         x->m_parent = y;
-
-        x->m_size = x->m_left->m_size + x->m_left->m_value.size() + x->m_right->m_size + x->m_right->m_value.size() + 1;
-        y->m_size = y->m_left->m_size + y->m_left->m_value.size() + y->m_right->m_size + y->m_right->m_value.size() + 1;
+        x->m_size = x->m_left->m_size + x->m_right->m_size + x->m_total;
+        y->m_size = y->m_left->m_size + y->m_right->m_size + y->m_total;
     }
 
     void rotate_right(node_sptr x)
@@ -627,8 +532,8 @@ template <typename Key, typename Value> class OrderStatisticRBtree
         }
         y->m_right = x;
         x->m_parent = y;
-        x->m_size = x->m_left->m_size + x->m_left->m_value.size() + x->m_right->m_size + x->m_right->m_value.size() + 1;
-        y->m_size = y->m_left->m_size + y->m_left->m_value.size() + y->m_right->m_size + y->m_right->m_value.size() + 1;
+        x->m_size = x->m_left->m_size + x->m_right->m_size + x->m_total;
+        y->m_size = y->m_left->m_size + y->m_right->m_size + y->m_total;
     }
 
     void init()
@@ -637,6 +542,7 @@ template <typename Key, typename Value> class OrderStatisticRBtree
         m_nil->m_color = Color::Black;
         m_nil->m_nil = true;
         m_nil->m_size = 0;
+        m_nil->m_total = 0;
         m_size = 0;
         m_root = m_nil;
     }

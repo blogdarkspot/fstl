@@ -4,6 +4,8 @@ project(HashTables VERSION 1.0.0 LANGUAGES C CXX)
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
+add_subdirectory(src)
+add_subdirectory(samples)
 option(ENABLE_TESTS "Build Tests" ON)
 option(ENABLE_BENCHMARK "Benchmark" ON)
 
@@ -13,7 +15,6 @@ if(ENABLE_TESTS)
 endif()
 
 if(ENABLE_BENCHMARK)
-	add_subdirectory(submodules/benchmark)
 	add_subdirectory(benchmark)
 endif()
 

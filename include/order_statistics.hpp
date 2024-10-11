@@ -1,8 +1,7 @@
 #pragma once
-#include<memory>
+#include <memory>
 
-template<typename T1, typename T2>
-struct Pair
+template <typename T1, typename T2> struct Pair
 {
     T1 first;
     T2 second;
@@ -14,14 +13,12 @@ enum class Color
     Red
 };
 
-
-template<typename Ty>
-struct Node
+template <typename Ty> struct Node
 {
-	using node_sptr = std::shared_ptr<Node<Ty>>;
+    using node_sptr = std::shared_ptr<Node<Ty>>;
     using value_type = Ty;
-    
-	node_sptr m_left;
+
+    node_sptr m_left;
     node_sptr m_right;
     node_sptr m_parent;
     Color m_color;
@@ -30,15 +27,13 @@ struct Node
     size_t m_size;
 };
 
-
-template<typename Node>
-struct Iterator
+template <typename Node> struct Iterator
 {
     using value_type = typename Node::value_type;
-    using reference = value_type&;
-    using pointer = value_type*;
+    using reference = value_type &;
+    using pointer = value_type *;
     using node_sptr = typename Node::node_sptr;
-    
+
     reference operator*()
     {
         return m_data->m_value;
@@ -62,13 +57,15 @@ struct Iterator
         return m_data->m_size;
     }
 
-    Iterator<Node>& operator++()
+    Iterator<Node> &operator++()
     {
         if (!(m_data->m_right->m_nil))
         {
             auto x = m_data->m_right;
             while (!(x->m_left->m_nil))
+            {
                 x = x->m_left;
+            }
             m_data = x;
         }
         else
@@ -85,14 +82,14 @@ struct Iterator
         return *this;
     }
 
-    Iterator<Node>& operator++(int)
+    Iterator<Node> &operator++(int)
     {
         auto ret = *this;
         ++*this;
         return ret;
     }
 
-    Iterator<Node>& operator--()
+    Iterator<Node> &operator--()
     {
         if (!(m_data->m_left->m_nil))
         {
@@ -124,27 +121,23 @@ struct Iterator
         return ret;
     }
 
-    bool operator==(Iterator<Node>& other)
+    bool operator==(Iterator<Node> &other)
     {
         return m_data == other.m_data;
     }
 
-    bool operator==(const Iterator<Node>& other) const
+    bool operator==(const Iterator<Node> &other) const
     {
         return m_data == other.m_data;
     }
 
     node_sptr m_data;
-
 };
 
-
-template<typename Key, typename Value>
-class OrderStatisticRBtree
+template <typename Key, typename Value> class OrderStatisticRBtree
 {
 
   public:
-
     using node_type = Node<Pair<Key, Value>>;
     using node_sptr = typename node_type::node_sptr;
     using iterator = Iterator<node_type>;
@@ -160,7 +153,7 @@ class OrderStatisticRBtree
         {
             return end();
         }
-        
+
         return iterator(minimum(m_root));
     }
 
@@ -202,7 +195,7 @@ class OrderStatisticRBtree
         }
     }
 
-    void insert(const Key& key, const Value& val)
+    void insert(const Key &key, const Value &val)
     {
         auto node = std::make_shared<node_type>();
         node->m_value.first = key;
@@ -212,7 +205,7 @@ class OrderStatisticRBtree
         ++m_size;
     }
 
-    iterator erase(const Key& key)
+    iterator erase(const Key &key)
     {
         auto x = m_root;
         auto y = m_nil;
@@ -264,7 +257,7 @@ class OrderStatisticRBtree
             }
             else
             {
-                //equal
+                // equal
                 throw;
             }
         }
@@ -284,7 +277,6 @@ class OrderStatisticRBtree
         z->m_left = m_nil;
         z->m_right = m_nil;
         z->m_color = Color::Red;
-
 
         fixup_insert(z);
     }
@@ -314,7 +306,7 @@ class OrderStatisticRBtree
                     z->m_parent->m_parent->m_color = Color::Red;
                     rotate_right(z->m_parent->m_parent);
                 }
-            } 
+            }
             else
             {
                 auto y = z->m_parent->m_parent->m_left;
@@ -411,8 +403,7 @@ class OrderStatisticRBtree
                     rotate_left(x->m_parent);
                     w = x->m_parent->m_right;
                 }
-                if (w->m_left->m_color == Color::Black && 
-                    w->m_right->m_color == Color::Black)
+                if (w->m_left->m_color == Color::Black && w->m_right->m_color == Color::Black)
                 {
                     w->m_color = Color::Red;
                     x = x->m_parent;
@@ -443,8 +434,7 @@ class OrderStatisticRBtree
                     rotate_right(x->m_parent);
                     w = x->m_parent->m_left;
                 }
-                if (w->m_right->m_color == Color::Black &&
-                    w->m_left->m_color == Color::Black)
+                if (w->m_right->m_color == Color::Black && w->m_left->m_color == Color::Black)
                 {
                     w->m_color = Color::Red;
                     x = x->m_parent;

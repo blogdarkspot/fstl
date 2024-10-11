@@ -1,0 +1,6 @@
+cmake_minimum_required(VERSION 3.20)
+
+add_executable(ArrayAndSimpleQueries)
+target_sources(ArrayAndSimpleQueries PRIVATE  array_and_simple_queries.cpp)
+set_target_properties(ArrayAndSimpleQueries PROPERTIES CXX_STANDARD 20)
+target_link_libraries(ArrayAndSimpleQueries PRIVATE cstl::container)
